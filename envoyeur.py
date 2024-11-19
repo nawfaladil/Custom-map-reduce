@@ -22,6 +22,8 @@ connexions = {}
 
 # Status monitoring phases
 phase1_status = {machine: False for machine in machines}
+phase2_status = {machine: False for machine in machines}
+
 
 #connect to the machines
 # for machine in machines:
@@ -66,7 +68,22 @@ def phase1(machine, data, phase):
     with lock :
         if message['content'] == "finished phase 1":
             phase1_status[machine] = True
+            
+def phase2(machine, data, phase):
+    send_to_machine(machine, data, phase)
+    response = connexions[machine].recv(BUFFER_SIZE).decode('utf-8')
+    message = json.loads(response)
+    print("Response from machine: ", message['content'])
+    with lock :
+        if message['content'] == "finished phase 2":
+            phase2_status[machine] = True
     
+    
+def phase3(machine, data, phase):
+    send_to_machine(machine, data, phase)
+    response = connexions[machine].recv(BUFFER_SIZE).decode('utf-8')
+    message = json.loads(response)
+    print(f"count of words by {machine} : {message}\n")
 
 def phase1_call():
     """Phase 1: Distribute machines list and string parts."""
@@ -99,12 +116,35 @@ def phase2_call():
             'phase': 2,
             'content': "start phase 2"
         }
-        thread = threading.Thread(target=send_to_machine, args=(machine, data, 2))
+        thread = threading.Thread(target=phase2, args=(machine, data, 2))
         threads.append(thread)
         thread.start()
     for thread in threads:
         thread.join()
     print("sent signal to phase 2")
+    print("sending signal to phase 3")
+    phase3_call()
+
+def phase3_call():
+    print("started phase 3")
+    threads = []
+    # Send the phase 2 signal to all machines
+    for  machine in machines :
+        data = {
+            'phase': 3,
+            'content': "start phase 3"
+        }
+        thread = threading.Thread(target=phase3, args=(machine, data, 3))
+        threads.append(thread)
+        thread.start()
+    for thread in threads:
+        thread.join()
+    # print("Phase 3 completed.")
+    # print("All phases completed.")
+    # print("Closing connections...")
+    # for machine in machines:
+    #     connexions[machine].close()
+    # print("Connections closed.")
     
 
 if __name__ == "__main__":

@@ -17,13 +17,17 @@ hostname = socket.gethostname()
 lock = threading.Lock()
 
 # receivers stopper
-# stopper_receiver_phase1 = True
+# stopper_receiver = True
 # stopper_receiver_phase2 = True
 
 # Data structures for phases
 machines_list = []
 local_words = []
 received_words = defaultdict(int)
+
+#phase 2 syncer
+status_phase2 = {}
+init_trigger = True
 
 # Create a socket to listen for incoming connections for phase 1
 server_socket1 = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -130,11 +134,14 @@ def send_to_machine(machine, data, phase):
         client_socket.sendall(json.dumps(data).encode('utf-8'))
     except Exception as e:
         print(f"[Phase {phase}] Error sending to {machine}: {e}")
-        
+
+def phase3():
+    """print word counts."""
+    print(f"[{hostname}] [Phase 3] Word counts: {received_words}")
 
 def handle_client(client_socket, address):
     """Handle incoming connections and process data."""
-    global machines_list, local_words, received_words
+    global machines_list, local_words, received_words, status_phase2, init_trigger
 
     try:
         # Receive data from the client
@@ -151,11 +158,17 @@ def handle_client(client_socket, address):
                 'content': "finished phase 1"
             }
             client_socket.sendall(json.dumps(data).encode('utf-8'))
+            if init_trigger == True :
+                print(f"{hostname}:initializing syncer of phase 2")
+                for machine in machines_list :
+                    status_phase2[machine] = False
+                init_trigger = False
+
+            
 
 
         # Phase 2: Receive individual words from other machines
         elif message['phase'] == 2:
-            print("entered here")
             word = message['content']
             if word == "start phase 2":
                 # for machine in machines_list:
@@ -193,10 +206,17 @@ def handle_client(client_socket, address):
                         with lock :
                             received_words[word] += 1
                             print(f"[{hostname}] [Phase 2] claimed word: '{word}'")
+
             else :
                 with lock :
                     received_words[word] += 1
-                    print(f"[{hostname}] [Phase 2] Received word: '{word}'")
+                    print(f"[{hostname}] [Phase 2] received word: '{word}'")
+                    
+        elif message['phase'] == 3:
+            print(f"{hostname} [phase 3] Received signal: {message['content']}")
+            response = json.dumps(received_words)
+            client_socket.sendall(response.encode('utf-8'))
+            print(f"[{hostname}] [Phase 3] Sent word counts: {received_words}")
 
         # # Phase 3: Send word counts back
         # elif message['phase'] == 3:
@@ -210,11 +230,11 @@ def handle_client(client_socket, address):
         client_socket.close()
 
 
-def receiver_phase1():
+def receiver():
     """Start a thread to listen for incoming words during Phase 1."""
     while True:
         client_socket, address = server_socket1.accept()
-        print(f"[{hostname}]  [phase 1] Connection established with {address}")
+        print(f"[{hostname}] Connection established with {address}")
         client_thread = threading.Thread(target=handle_client, args=(client_socket, address))
         client_thread.start()
         client_thread.join()
@@ -233,7 +253,7 @@ def receiver_phase1():
 if __name__ == "__main__":
     try:
         print(f"[{hostname}] Starting the server...")
-        receiver1 = threading.Thread(target=receiver_phase1, daemon=True)
+        receiver1 = threading.Thread(target=receiver, daemon=True)
         receiver1.start()
         # receiver1.join()
         
