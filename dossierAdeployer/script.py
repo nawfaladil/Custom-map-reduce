@@ -206,7 +206,10 @@ def handle_client(client_socket, address):
                         with lock :
                             received_words[word] += 1
                             print(f"[{hostname}] [Phase 2] claimed word: '{word}'")
-
+                data = {
+                    'content': "finished phase 2"
+                }
+                client_socket.sendall(json.dumps(data).encode('utf-8'))
             else :
                 with lock :
                     received_words[word] += 1

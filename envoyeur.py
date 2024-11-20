@@ -15,7 +15,11 @@ with open('machines.txt', 'r') as file:
     machines = [line.strip() for line in file.readlines()]
 
 # Input string to distribute
-input_string = "hello distributed systems world this is a test of phase one two three"
+with open('input_strings.txt', 'r') as file:
+    input_string = file.read().strip().replace('\n', ' ')
+
+#verifying the input string
+print("Input string: ", input_string)
 
 #dictionnary to stock connexions
 connexions = {}
@@ -63,8 +67,11 @@ def send_to_machine(machine, data, phase):
 def phase1(machine, data, phase):
     send_to_machine(machine, data, phase)
     response = connexions[machine].recv(BUFFER_SIZE).decode('utf-8')
-    message = json.loads(response)
-    print("Response from machine: ", message['content'])
+    if response != None :
+        message = json.loads(response)
+        print("Response from machine: ", message['content'])
+    else :
+        print(f"[phase 1] No response from machine {machine}")
     with lock :
         if message['content'] == "finished phase 1":
             phase1_status[machine] = True
@@ -72,8 +79,11 @@ def phase1(machine, data, phase):
 def phase2(machine, data, phase):
     send_to_machine(machine, data, phase)
     response = connexions[machine].recv(BUFFER_SIZE).decode('utf-8')
-    message = json.loads(response)
-    print("Response from machine: ", message['content'])
+    if response != None :
+        message = json.loads(response)
+        print("Response from machine: ", message['content'])
+    else :
+        print(f"[phase 2] No response from machine {machine}")
     with lock :
         if message['content'] == "finished phase 2":
             phase2_status[machine] = True
@@ -86,6 +96,7 @@ def phase3(machine, data, phase):
     print(f"count of words by {machine} : {message}\n")
 
 def phase1_call():
+    global phase1_status
     """Phase 1: Distribute machines list and string parts."""
     threads = []
     for idx, machine in enumerate(machines):
@@ -103,11 +114,14 @@ def phase1_call():
     for thread in threads:
         thread.join()
     print("Phase 1 completed.")
-    print("starting phase 2")
-    phase2_call()
+    print("status of phase 1: ", phase1_status)
+    if all(phase1_status.values()):
+        print("starting phase 2")
+        phase2_call()
     
 
 def phase2_call():
+    global phase2_status
     print("started phase 2")
     threads = []
     # Send the phase 2 signal to all machines
@@ -122,8 +136,9 @@ def phase2_call():
     for thread in threads:
         thread.join()
     print("sent signal to phase 2")
-    print("sending signal to phase 3")
-    phase3_call()
+    if all(phase2_status.values()):
+        print("sending signal to phase 3")
+        phase3_call()
 
 def phase3_call():
     print("started phase 3")
