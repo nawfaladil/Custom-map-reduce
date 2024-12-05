@@ -34,8 +34,8 @@ Ce projet implémente une version personnalisée de MapReduce pour compter les m
 
 # Exemple
 
-**Entrée (input_strings.txt): pomme banane pomme orange banane orange pomme
-**Sortie (comptage des mots): 
+1. **Entrée (input_strings.txt)** : pomme banane pomme orange banane orange pomme
+2. **Sortie (comptage des mots)** : 
 pomme : 3
 banane : 2
 orange : 2
